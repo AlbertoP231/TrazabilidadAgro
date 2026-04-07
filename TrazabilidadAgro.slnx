@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="TrazabilidadAgro.API/TrazabilidadAgro.API.csproj" />
+  <Project Path="TrazabilidadAgro.Application/TrazabilidadAgro.Application.csproj" />
+  <Project Path="TrazabilidadAgro.Domain/TrazabilidadAgro.Domain.csproj" />
+  <Project Path="TrazabilidadAgro.Infrastructure/TrazabilidadAgro.Infrastructure.csproj" />
+</Solution>

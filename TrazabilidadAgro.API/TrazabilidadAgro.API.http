@@ -1,0 +1,6 @@
+@TrazabilidadAgro.API_HostAddress = http://localhost:5126
+
+GET {{TrazabilidadAgro.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
