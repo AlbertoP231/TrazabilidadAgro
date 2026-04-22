@@ -38,11 +38,17 @@ public class AppDbContext : DbContext
             .WithOne(u => u.Productor)
             .HasForeignKey<Productor>(p => p.IdUsuario);
 
+        // --- Mapeo de Producto ---
         modelBuilder.Entity<Producto>().ToTable("Productos").HasKey(p => p.IdProducto);
+
+        // Mapeo de la propiedad ImagenUrl a la columna imagen_url
+        modelBuilder.Entity<Producto>().Property(p => p.ImagenUrl).HasColumnName("imagen_url");
+
         modelBuilder.Entity<Producto>()
             .HasOne(p => p.Productor)
             .WithMany(pr => pr.Productos)
             .HasForeignKey(p => p.IdProductor);
+        // -------------------------
 
         modelBuilder.Entity<Lote>().ToTable("Lotes").HasKey(l => l.IdLote);
         modelBuilder.Entity<Lote>()

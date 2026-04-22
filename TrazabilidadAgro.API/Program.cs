@@ -84,4 +84,6 @@ app.UseCors("ReactApp");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+// Servir archivos estáticos (imágenes)
+app.UseStaticFiles();
 app.Run();

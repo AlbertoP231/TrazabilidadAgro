@@ -7,6 +7,7 @@ public class Producto
     public string? Descripcion { get; set; }
     public decimal? Precio { get; set; }
     public int IdProductor { get; set; }
+    public string? ImagenUrl { get; set; } 
 
     public Productor Productor { get; set; } = null!;
     public ICollection<Lote> Lotes { get; set; } = new List<Lote>();

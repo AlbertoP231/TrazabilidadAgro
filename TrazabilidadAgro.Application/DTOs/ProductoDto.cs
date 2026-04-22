@@ -8,6 +8,8 @@ public class ProductoDto
     public decimal? Precio { get; set; }
     public int IdProductor { get; set; }
     public string? NombreProductor { get; set; }
+
+    public string? ImagenUrl { get; set; } 
 }
 
 public class CrearProductoDto
@@ -15,4 +17,6 @@ public class CrearProductoDto
     public string Nombre { get; set; } = string.Empty;
     public string? Descripcion { get; set; }
     public decimal? Precio { get; set; }
+
+    public string? ImagenUrl { get; set; }
 }
