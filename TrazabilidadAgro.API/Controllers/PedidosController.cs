@@ -9,7 +9,6 @@ namespace TrazabilidadAgro.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "CLIENTE")]
 public class PedidosController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -20,6 +19,7 @@ public class PedidosController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = "CLIENTE")]
     public async Task<IActionResult> GetMisPedidos()
     {
         var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
@@ -27,6 +27,7 @@ public class PedidosController : ControllerBase
         var pedidos = await _context.Pedidos
             .Include(p => p.Detalles).ThenInclude(d => d.Producto)
             .Where(p => p.IdUsuario == idUsuario)
+            .OrderByDescending(p => p.Fecha)
             .Select(p => new
             {
                 p.IdPedido,
@@ -46,7 +47,57 @@ public class PedidosController : ControllerBase
         return Ok(pedidos);
     }
 
+    // Admin ve todos los pedidos
+    [HttpGet("todos")]
+    [Authorize(Roles = "ADMIN")]
+    public async Task<IActionResult> GetTodos()
+    {
+        var pedidos = await _context.Pedidos
+            .Include(p => p.Usuario)
+            .Include(p => p.Detalles).ThenInclude(d => d.Producto)
+            .OrderByDescending(p => p.Fecha)
+            .Select(p => new
+            {
+                p.IdPedido,
+                p.Fecha,
+                p.Estado,
+                p.Total,
+                NombreCliente = p.Usuario.Nombre,
+                EmailCliente = p.Usuario.Email,
+                Detalles = p.Detalles.Select(d => new
+                {
+                    d.IdDetalle,
+                    NombreProducto = d.Producto.Nombre,
+                    d.Cantidad,
+                    d.Precio
+                })
+            }).ToListAsync();
+
+        return Ok(pedidos);
+    }
+
+    // Admin cambia estado del pedido
+    [HttpPut("{id}/estado")]
+    [Authorize(Roles = "ADMIN")]
+    public async Task<IActionResult> CambiarEstado(int id, [FromBody] CambiarEstadoDto dto)
+    {
+        var estadosValidos = new[] { "PENDIENTE", "EN_PROCESO", "ENTREGADO", "CANCELADO" };
+
+        if (!estadosValidos.Contains(dto.Estado))
+            return BadRequest(new { mensaje = "Estado no válido" });
+
+        var pedido = await _context.Pedidos.FindAsync(id);
+        if (pedido == null)
+            return NotFound(new { mensaje = "Pedido no encontrado" });
+
+        pedido.Estado = dto.Estado;
+        await _context.SaveChangesAsync();
+
+        return Ok(new { mensaje = $"Pedido actualizado a {dto.Estado}" });
+    }
+
     [HttpPost]
+    [Authorize(Roles = "CLIENTE")]
     public async Task<IActionResult> Crear([FromBody] CrearPedidoDto dto)
     {
         var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
@@ -70,6 +121,11 @@ public class PedidosController : ControllerBase
 
         return Ok(new { mensaje = "Pedido creado", idPedido = pedido.IdPedido });
     }
+}
+
+public class CambiarEstadoDto
+{
+    public string Estado { get; set; } = string.Empty;
 }
 
 public class CrearPedidoDto
