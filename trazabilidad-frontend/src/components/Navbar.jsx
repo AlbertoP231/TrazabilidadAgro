@@ -41,8 +41,16 @@ const Navbar = () => {
               <Link className="nav-link" to="/admin/blockchain">
                 <i className="bi bi-link-45deg me-1"></i>Blockchain
               </Link>
+            </li>   
+            <li className="nav-item">
+              <Link className="nav-link" to="/admin/pedidos">
+                <i className="bi bi-bag me-1"></i>Pedidos
+              </Link>
             </li>
-          </>}
+            </>}
+            
+            
+          
 
           {/* Links PRODUCTOR */}
           {usuario?.rol === 'PRODUCTOR' && <>
