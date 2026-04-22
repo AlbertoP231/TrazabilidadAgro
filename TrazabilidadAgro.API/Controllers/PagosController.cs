@@ -36,17 +36,17 @@ public class PagosController : ControllerBase
             if (pedido == null)
                 return NotFound(new { mensaje = "Pedido no encontrado" });
 
-            // 1. Configurar Access Token (Asegúrate que en appsettings empiece con TEST-)
+            // 1. Configurar Access Token (Debe empezar con TEST- en tu appsettings.json)
             var accessToken = _config["MercadoPago:AccessToken"];
             if (string.IsNullOrEmpty(accessToken))
             {
-                return StatusCode(500, new { error = "Configuración faltante", detalle = "AccessToken no configurado" });
+                return StatusCode(500, new { error = "Configuración faltante", detalle = "AccessToken no configurado en appsettings.json" });
             }
             MercadoPagoConfig.AccessToken = accessToken;
 
             var client = new PreferenceClient();
 
-            // 2. Mapear items (Validando que el precio sea mayor a 0)
+            // 2. Mapear items (Mercado Pago requiere UnitPrice > 0)
             var items = pedido.Detalles.Select(d => new PreferenceItemRequest
             {
                 Title = d.Producto.Nombre,
@@ -59,32 +59,35 @@ public class PagosController : ControllerBase
             var request = new PreferenceRequest
             {
                 Items = items,
+                Payer = new PreferencePayerRequest
+                {
+                    // IMPORTANTE: El email es obligatorio para que el botón se active en Sandbox
+                    Email = "test_user_123456@testuser.com"
+                },
                 ExternalReference = idPedido.ToString(),
-                // Simplificamos las URLs para evitar el error 400 en localhost
                 BackUrls = new PreferenceBackUrlsRequest
                 {
                     Success = "http://localhost:5173/pago/exitoso",
                     Failure = "http://localhost:5173/pago/fallido",
                     Pending = "http://localhost:5173/pago/pendiente"
                 },
-                // Mantenemos AutoReturn desactivado para entornos de desarrollo local
+                // Mantenemos esto en null para evitar bloqueos por seguridad de cookies en localhost
                 AutoReturn = null,
-                // NotificationUrl = "https://tu-url-ngrok.com/api/pagos/webhook" 
             };
 
-            // 4. Ejecutar creación en Mercado Pago
+            // 4. Crear preferencia
             Preference preference = await client.CreateAsync(request);
 
-            // Devolvemos el sandboxInitPoint que es el que usarás con tu token TEST
             return Ok(new
             {
                 preferenceId = preference.Id,
                 initPoint = preference.InitPoint,
-                sandboxInitPoint = preference.SandboxInitPoint
+                sandboxInitPoint = preference.SandboxInitPoint // Usa este en el frontend
             });
         }
         catch (MercadoPago.Error.MercadoPagoApiException apiEx)
         {
+            // Corrección de tipos para el StatusCode
             int statusCode = apiEx.StatusCode.HasValue
                 ? (int)apiEx.StatusCode.Value
                 : (int)HttpStatusCode.InternalServerError;
@@ -97,7 +100,7 @@ public class PagosController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { error = "Error interno", detalle = ex.Message });
+            return StatusCode(500, new { error = "Error interno del servidor", detalle = ex.Message });
         }
     }
 
