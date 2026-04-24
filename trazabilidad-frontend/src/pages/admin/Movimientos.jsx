@@ -20,16 +20,20 @@ const AdminMovimientos = () => {
   const cargarDatos = async () => {
     setCargando(true)
     try {
-      // Nota: Asegúrate que en tu Backend el endpoint sea /api/lotes o /api/admin/lotes
-      const [resMovimientos, resLotes] = await Promise.all([
-        api.get('/movimientos'),
-        api.get('/lotes').catch(() => ({ data: [] })) // Cambiado para evitar el 404 si la ruta es distinta
-      ])
-      
+      // 1. Cargar Movimientos (Obligatorio)
+      const resMovimientos = await api.get('/movimientos')
       setMovimientos(resMovimientos.data)
-      setLotes(resLotes.data)
+
+      // 2. Cargar Lotes (Aislado en su propio bloque Try-Catch)
+      try {
+        const resLotes = await api.get('/lotes')
+        setLotes(resLotes.data || [])
+      } catch (errLotes) {
+        console.warn("Error 403 o 500 al cargar los lotes. Revisa el token o los roles del backend.", errLotes)
+        // No mostramos toast de error aquí para no saturar al usuario, solo dejamos la lista vacía o manual
+      }
     } catch (error) {
-      console.error("Error al cargar datos:", error)
+      console.error("Error al cargar datos principales:", error)
       toast.error('Error al conectar con el servidor')
     } finally {
       setCargando(false)
@@ -42,11 +46,11 @@ const AdminMovimientos = () => {
 
   const handleGuardar = async (e) => {
     e.preventDefault()
-    const loadingToast = toast.loading('Registrando en Blockchain...')
+    const loadingToast = toast.loading('Guardando registro local...')
     
     try {
       await api.post('/movimientos', form)
-      toast.success('Movimiento registrado e indexado en la red', { id: loadingToast })
+      toast.success('Movimiento registrado. Pendiente de firma en red.', { id: loadingToast })
       setForm({ idLote: '', tipoMovimiento: '', descripcion: '' })
       cargarDatos()
     } catch (error) {
@@ -68,21 +72,33 @@ const AdminMovimientos = () => {
         <div className="card-body">
           <form onSubmit={handleGuardar}>
             <div className="row g-3">
-              <div className="col-md-3">
+              <div className="col-md-4">
                 <label className="form-label fw-semibold">Seleccionar Lote</label>
-                <select 
-                  className="form-select"
-                  value={form.idLote}
-                  onChange={e => setForm({ ...form, idLote: e.target.value })}
-                  required
-                >
-                  <option value="">Seleccione Lote...</option>
-                  {lotes.map(l => (
-                    <option key={l.idLote} value={l.idLote}>
-                      Lote #{l.idLote} - {l.productoNombre || 'Cosecha'}
-                    </option>
-                  ))}
-                </select>
+                {/* Fallback de seguridad: Si no hay lotes, mostramos un input normal */}
+                {lotes && lotes.length > 0 ? (
+                  <select 
+                    className="form-select"
+                    value={form.idLote}
+                    onChange={e => setForm({ ...form, idLote: e.target.value })}
+                    required
+                  >
+                    <option value="">Seleccione Lote...</option>
+                    {lotes.map(l => (
+                      <option key={l.idLote} value={l.idLote}>
+                        {l.productoNombre || 'Producto'} — LOTE-{l.codigoHash || l.idLote}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="number"
+                    className="form-control"
+                    placeholder="Ingresa ID manualmente (Ej: 1)"
+                    value={form.idLote}
+                    onChange={e => setForm({ ...form, idLote: e.target.value })}
+                    required
+                  />
+                )}
               </div>
               <div className="col-md-3">
                 <label className="form-label fw-semibold">Etapa de Trazabilidad</label>
@@ -98,19 +114,19 @@ const AdminMovimientos = () => {
                   ))}
                 </select>
               </div>
-              <div className="col-md-6">
+              <div className="col-md-5">
                 <label className="form-label fw-semibold">Detalles del Evento</label>
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Ej: Temperatura de transporte 4°C, camión placas MX-90"
+                  placeholder="Ej: Temperatura 4°C, placas MX-90"
                   value={form.descripcion}
                   onChange={e => setForm({ ...form, descripcion: e.target.value })}
                 />
               </div>
             </div>
-            <button type="submit" className="btn btn-warning text-dark mt-3 fw-bold">
-              <i className="bi bi-shield-lock me-1"></i>Firmar y Subir a Blockchain
+            <button type="submit" className="btn btn-dark mt-3 fw-bold">
+              <i className="bi bi-save me-1"></i>Guardar Movimiento
             </button>
           </form>
         </div>
@@ -158,6 +174,7 @@ const AdminMovimientos = () => {
                         </td>
                         <td>{new Date(m.fecha).toLocaleString('es-MX')}</td>
                         <td>
+                          {/* BOTON DE FIRMAR AQUI */}
                           {m.txHash ? (
                             <a 
                               href={`https://sepolia.etherscan.io/tx/${m.txHash}`} 
@@ -169,7 +186,9 @@ const AdminMovimientos = () => {
                               {m.txHash.slice(0, 8)}...
                             </a>
                           ) : (
-                            <span className="badge bg-light text-secondary border">Local-Only</span>
+                            <button className="btn btn-sm btn-outline-dark fw-semibold">
+                              <i className="bi bi-pen me-1"></i>Firmar en Blockchain
+                            </button>
                           )}
                         </td>
                       </tr>

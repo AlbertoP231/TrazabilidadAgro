@@ -10,7 +10,9 @@ namespace TrazabilidadAgro.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "PRODUCTOR")]
+// We only require the user to be authenticated, NOT a specific role here.
+// This prevents the 403 Forbidden error at the gateway.
+[Authorize]
 public class LotesController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -21,29 +23,65 @@ public class LotesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetMisLotes()
+    public async Task<IActionResult> GetLotes()
     {
-        var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var productor = await _context.Productores.FirstOrDefaultAsync(p => p.IdUsuario == idUsuario);
+        try
+        {
+            // Extract the user's role from the claims manually to see exactly what they have
+            var userRole = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value?.ToUpper() ?? "";
 
-        var lotes = await _context.Lotes
-            .Include(l => l.Producto)
-            .Where(l => l.Producto.IdProductor == productor!.IdProductor)
-            .Select(l => new LoteDto
+            // If the user is neither an Administrator nor a Productor, deny access manually
+            if (userRole != "ADMINISTRADOR" && userRole != "ADMIN" && userRole != "PRODUCTOR")
             {
-                IdLote = l.IdLote,
-                IdProducto = l.IdProducto,
-                NombreProducto = l.Producto.Nombre,
-                FechaSiembra = l.FechaSiembra,
-                FechaCosecha = l.FechaCosecha,
-                Cantidad = l.Cantidad,
-                CodigoQr = l.CodigoQr
+                return Forbid(); // Or return Unauthorized()
+            }
+
+            var query = _context.Lotes.Include(l => l.Producto).AsQueryable();
+
+            // Only filter the query if the user is explicitly a Productor
+            if (userRole == "PRODUCTOR")
+            {
+                var idUsuarioClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+                if (idUsuarioClaim != null)
+                {
+                    var idUsuario = int.Parse(idUsuarioClaim.Value);
+                    var productor = await _context.Productores.FirstOrDefaultAsync(p => p.IdUsuario == idUsuario);
+
+                    if (productor != null)
+                    {
+                        query = query.Where(l => l.Producto.IdProductor == productor.IdProductor);
+                    }
+                    else
+                    {
+                        return Ok(new List<object>());
+                    }
+                }
+            }
+            // Administrators bypass the filter and see everything
+
+            var lotes = await query.Select(l => new
+            {
+                idLote = l.IdLote,
+                idProducto = l.IdProducto,
+                productoNombre = l.Producto != null ? l.Producto.Nombre : "Producto sin nombre",
+                fechaSiembra = l.FechaSiembra,
+                fechaCosecha = l.FechaCosecha,
+                cantidad = l.Cantidad,
+                codigoQr = l.CodigoQr,
+                codigoHash = l.CodigoQr
             }).ToListAsync();
 
-        return Ok(lotes);
+            return Ok(lotes);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "Error al obtener lotes", detalle = ex.Message });
+        }
     }
 
     [HttpPost]
+    // Specific role restriction applied only to creation
+    [Authorize(Roles = "PRODUCTOR")]
     public async Task<IActionResult> Crear([FromBody] CrearLoteDto dto)
     {
         var codigoQr = $"LOTE-{Guid.NewGuid().ToString()[..8].ToUpper()}";
@@ -69,17 +107,18 @@ public class LotesController : ControllerBase
         var insumos = await _context.LoteInsumos
             .Include(li => li.Insumo)
             .Where(li => li.IdLote == id)
-            .Select(li => new InsumoDto
+            .Select(li => new
             {
-                Nombre = li.Insumo.Nombre,
-                Tipo = li.Insumo.Tipo,
-                Descripcion = li.Descripcion
+                nombre = li.Insumo.Nombre,
+                tipo = li.Insumo.Tipo,
+                descripcion = li.Descripcion
             }).ToListAsync();
 
         return Ok(insumos);
     }
 
     [HttpPost("{id}/insumos")]
+    [Authorize(Roles = "PRODUCTOR")]
     public async Task<IActionResult> AgregarInsumo(int id, [FromBody] AgregarInsumoDto dto)
     {
         var loteInsumo = new LoteInsumo
