@@ -6,6 +6,10 @@
 # dotenv files
 .env
 
+#Mercado Pago
+TrazabilidadAgro.API/appsettings.json
+
+
 # User-specific files
 *.rsuser
 *.suo
