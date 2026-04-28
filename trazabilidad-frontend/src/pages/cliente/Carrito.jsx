@@ -6,7 +6,7 @@ import api from '../../api/axios'
 import toast from 'react-hot-toast'
 
 // Tu public key de sandbox de MercadoPago
-initMercadoPago('TEST-8cf43a92-cc34-46e9-8afe-3f9b96118e61', { locale: 'es-MX' })
+initMercadoPago('APP_USR-1722c681-0b23-44ec-b628-d069c6dfae08', { locale: 'es-MX' })
 
 const Carrito = () => {
   const { items, quitar, cambiarCantidad, vaciar, total } = useCarritoStore()
