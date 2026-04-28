@@ -4,8 +4,11 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 using TrazabilidadAgro.Infrastructure.Data;
+using Microsoft.Extensions.FileProviders; // Necesario para PhysicalFileProvider
 
 var builder = WebApplication.CreateBuilder(args);
+
+// --- SERVICIOS ---
 
 // Base de datos
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -78,12 +81,35 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-app.UseSwagger();
-app.UseSwaggerUI();
+// --- MIDDLEWARE ---
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
 app.UseCors("ReactApp");
+
+// 1. Configurar carpeta de imágenes (IMPORTANTE)
+// Esto permite que el navegador entre a http://localhost:5126/Uploads/nombre.jpg
+var uploadsPath = Path.Combine(builder.Environment.ContentRootPath, "Uploads");
+if (!Directory.Exists(uploadsPath))
+{
+    Directory.CreateDirectory(uploadsPath);
+}
+
+app.UseStaticFiles(); // Para wwwroot (si existe)
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsPath),
+    RequestPath = "/Uploads"
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
-// Servir archivos estáticos (imágenes)
-app.UseStaticFiles();
+
 app.Run();

@@ -26,6 +26,12 @@ import PagoFallido from './pages/cliente/PagoFallido'
 
 import Trazabilidad from './pages/public/Trazabilidad'
 
+// --- CONFIGURACIÓN GLOBAL DE IMÁGENES ---
+// Al exportar esto, puedes importarlo en Catalogo, Carrito, etc.
+// Cambia el puerto aquí una sola vez si tu API se mueve de puerto.
+export const API_URL = "http://localhost:5126"; 
+export const IMAGES_URL = `${API_URL}/Uploads`;
+
 function App() {
   return (
     <BrowserRouter>
@@ -41,21 +47,27 @@ function App() {
           <Route path="/pago/pendiente" element={<PagoFallido />} />
           <Route path="/" element={<Navigate to="/login" />} />
 
+          {/* Rutas Administrativas */}
           <Route path="/admin/dashboard" element={<PrivateRoute rol="ADMIN"><AdminDashboard /></PrivateRoute>} />
           <Route path="/admin/usuarios" element={<PrivateRoute rol="ADMIN"><AdminUsuarios /></PrivateRoute>} />
           <Route path="/admin/movimientos" element={<PrivateRoute rol="ADMIN"><AdminMovimientos /></PrivateRoute>} />
           <Route path="/admin/blockchain" element={<PrivateRoute rol="ADMIN"><AdminBlockchain /></PrivateRoute>} />
           <Route path="/admin/pedidos" element={<PrivateRoute rol="ADMIN"><AdminPedidos /></PrivateRoute>} />
 
+          {/* Rutas Productor */}
           <Route path="/productor/dashboard" element={<PrivateRoute rol="PRODUCTOR"><ProductorDashboard /></PrivateRoute>} />
           <Route path="/productor/productos" element={<PrivateRoute rol="PRODUCTOR"><ProductorProductos /></PrivateRoute>} />
           <Route path="/productor/lotes" element={<PrivateRoute rol="PRODUCTOR"><ProductorLotes /></PrivateRoute>} />
           <Route path="/productor/insumos" element={<PrivateRoute rol="PRODUCTOR"><ProductorInsumos /></PrivateRoute>} />
 
+          {/* Rutas Cliente / Público */}
           <Route path="/catalogo" element={<Catalogo />} />
           <Route path="/cliente/carrito" element={<PrivateRoute rol="CLIENTE"><Carrito /></PrivateRoute>} />
           <Route path="/cliente/pedidos" element={<PrivateRoute rol="CLIENTE"><Pedidos /></PrivateRoute>} />
           <Route path="/cliente/escanear" element={<PrivateRoute rol="CLIENTE"><EscanearQR /></PrivateRoute>} />
+          
+          {/* Redirección por defecto si la ruta no existe */}
+          <Route path="*" element={<Navigate to="/login" />} />
         </Routes>
       </div>
     </BrowserRouter>

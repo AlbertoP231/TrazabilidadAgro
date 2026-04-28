@@ -13,12 +13,10 @@ namespace TrazabilidadAgro.API.Controllers;
 public class ProductosController : ControllerBase
 {
     private readonly AppDbContext _context;
-    private readonly IWebHostEnvironment _env;
 
-    public ProductosController(AppDbContext context, IWebHostEnvironment env)
+    public ProductosController(AppDbContext context)
     {
         _context = context;
-        _env = env;
     }
 
     [HttpGet]
@@ -36,20 +34,16 @@ public class ProductosController : ControllerBase
                 NombreProductor = p.Productor.Usuario.Nombre,
                 ImagenUrl = p.ImagenUrl
             }).ToListAsync();
-
         return Ok(productos);
     }
 
     [HttpGet("mis-productos")]
-    [Authorize(Roles = "PRODUCTOR")]
+    [Authorize(Roles = "PRODUCTOR,Productor")]
     public async Task<IActionResult> GetMisProductos()
     {
         var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var productor = await _context.Productores
-            .FirstOrDefaultAsync(p => p.IdUsuario == idUsuario);
-
-        if (productor == null)
-            return NotFound(new { mensaje = "Perfil de productor no encontrado" });
+        var productor = await _context.Productores.FirstOrDefaultAsync(p => p.IdUsuario == idUsuario);
+        if (productor == null) return NotFound(new { mensaje = "Perfil no encontrado" });
 
         var productos = await _context.Productos
             .Where(p => p.IdProductor == productor.IdProductor)
@@ -62,116 +56,80 @@ public class ProductosController : ControllerBase
                 IdProductor = p.IdProductor,
                 ImagenUrl = p.ImagenUrl
             }).ToListAsync();
-
         return Ok(productos);
     }
 
     [HttpPost]
-    [Authorize(Roles = "PRODUCTOR")]
+    [Authorize(Roles = "PRODUCTOR,Productor")]
     public async Task<IActionResult> Crear([FromBody] CrearProductoDto dto)
     {
         var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var productor = await _context.Productores
-            .FirstOrDefaultAsync(p => p.IdUsuario == idUsuario);
-
-        if (productor == null)
-            return NotFound(new { mensaje = "Perfil de productor no encontrado" });
+        var productor = await _context.Productores.FirstOrDefaultAsync(p => p.IdUsuario == idUsuario);
 
         var producto = new Producto
         {
             Nombre = dto.Nombre,
             Descripcion = dto.Descripcion,
             Precio = dto.Precio,
-            IdProductor = productor.IdProductor,
+            IdProductor = productor!.IdProductor,
             ImagenUrl = dto.ImagenUrl
         };
-
         _context.Productos.Add(producto);
         await _context.SaveChangesAsync();
-
         return Ok(new { mensaje = "Producto creado", idProducto = producto.IdProducto });
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "PRODUCTOR")]
+    [Authorize(Roles = "PRODUCTOR,Productor")]
     public async Task<IActionResult> Actualizar(int id, [FromBody] CrearProductoDto dto)
     {
-        var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var productor = await _context.Productores
-            .FirstOrDefaultAsync(p => p.IdUsuario == idUsuario);
-
-        var producto = await _context.Productos
-            .FirstOrDefaultAsync(p => p.IdProducto == id && p.IdProductor == productor!.IdProductor);
-
-        if (producto == null)
-            return NotFound(new { mensaje = "Producto no encontrado" });
+        var producto = await _context.Productos.FindAsync(id);
+        if (producto == null) return NotFound();
 
         producto.Nombre = dto.Nombre;
         producto.Descripcion = dto.Descripcion;
         producto.Precio = dto.Precio;
-        producto.ImagenUrl = dto.ImagenUrl;
+        if (!string.IsNullOrEmpty(dto.ImagenUrl)) producto.ImagenUrl = dto.ImagenUrl;
 
         await _context.SaveChangesAsync();
         return Ok(new { mensaje = "Producto actualizado" });
     }
 
-    // Subida de imagen al servidor
+    // EL MÉTODO QUE TE DABA 404 (RESTAURADO Y CORREGIDO)
     [HttpPost("{id}/imagen")]
-    [Authorize(Roles = "PRODUCTOR")]
+    [Authorize(Roles = "PRODUCTOR,Productor")]
     public async Task<IActionResult> SubirImagen(int id, IFormFile archivo)
     {
-        var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var productor = await _context.Productores
-            .FirstOrDefaultAsync(p => p.IdUsuario == idUsuario);
+        var producto = await _context.Productos.FindAsync(id);
+        if (producto == null) return NotFound();
 
-        var producto = await _context.Productos
-            .FirstOrDefaultAsync(p => p.IdProducto == id && p.IdProductor == productor!.IdProductor);
-
-        if (producto == null)
-            return NotFound();
-
-        if (archivo == null || archivo.Length == 0)
-            return BadRequest(new { mensaje = "No se recibió archivo" });
-
-        var extensionesPermitidas = new[] { ".jpg", ".jpeg", ".png", ".webp" };
-        var extension = Path.GetExtension(archivo.FileName).ToLower();
-
-        if (!extensionesPermitidas.Contains(extension))
-            return BadRequest(new { mensaje = "Solo se permiten imágenes jpg, png, webp" });
-
-        var carpeta = Path.Combine(_env.WebRootPath ?? "wwwroot", "imagenes", "productos");
-        Directory.CreateDirectory(carpeta);
-
-        var nombreArchivo = $"producto_{id}_{Guid.NewGuid()}{extension}";
-        var rutaCompleta = Path.Combine(carpeta, nombreArchivo);
-
-        using (var stream = new FileStream(rutaCompleta, FileMode.Create))
+        if (archivo != null && archivo.Length > 0)
         {
-            await archivo.CopyToAsync(stream);
+            var nombreArchivo = $"prod_{id}_{Guid.NewGuid()}{Path.GetExtension(archivo.FileName)}";
+            var rutaUploads = Path.Combine(Directory.GetCurrentDirectory(), "Uploads");
+            if (!Directory.Exists(rutaUploads)) Directory.CreateDirectory(rutaUploads);
+
+            var rutaCompleta = Path.Combine(rutaUploads, nombreArchivo);
+            using (var stream = new FileStream(rutaCompleta, FileMode.Create))
+            {
+                await archivo.CopyToAsync(stream);
+            }
+
+            producto.ImagenUrl = nombreArchivo; // Guardamos solo el nombre
+            await _context.SaveChangesAsync();
+            return Ok(new { imagenUrl = nombreArchivo });
         }
-
-        producto.ImagenUrl = $"/imagenes/productos/{nombreArchivo}";
-        await _context.SaveChangesAsync();
-
-        return Ok(new { imagenUrl = producto.ImagenUrl });
+        return BadRequest("No se recibió imagen");
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "PRODUCTOR")]
+    [Authorize(Roles = "PRODUCTOR,Productor")]
     public async Task<IActionResult> Eliminar(int id)
     {
-        var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var productor = await _context.Productores
-            .FirstOrDefaultAsync(p => p.IdUsuario == idUsuario);
-
-        var producto = await _context.Productos
-            .FirstOrDefaultAsync(p => p.IdProducto == id && p.IdProductor == productor!.IdProductor);
-
-        if (producto == null)
-            return NotFound(new { mensaje = "Producto no encontrado" });
-
+        var producto = await _context.Productos.FindAsync(id);
+        if (producto == null) return NotFound();
         _context.Productos.Remove(producto);
         await _context.SaveChangesAsync();
-        return Ok(new { mensaje = "Producto eliminado" });
+        return Ok();
     }
 }

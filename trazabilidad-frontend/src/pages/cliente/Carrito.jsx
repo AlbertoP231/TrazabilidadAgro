@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { initMercadoPago, Wallet } from '@mercadopago/sdk-react'
 import useCarritoStore from '../../context/useCarritoStore'
 import api from '../../api/axios'
 import toast from 'react-hot-toast'
 
-// Tu public key de sandbox de MercadoPago — empieza con TEST-
+// Tu public key de sandbox de MercadoPago
 initMercadoPago('TEST-8cf43a92-cc34-46e9-8afe-3f9b96118e61', { locale: 'es-MX' })
 
 const Carrito = () => {
@@ -14,6 +14,15 @@ const Carrito = () => {
   const [idPedidoCreado, setIdPedidoCreado] = useState(null)
   const [procesando, setProcesando] = useState(false)
   const navigate = useNavigate()
+
+  // FUNCIÓN PARA GENERAR LA URL GLOBAL DE IMÁGENES
+  const getImagenUrl = (ruta) => {
+    if (!ruta) return null;
+    if (ruta.startsWith('http')) return ruta;
+    // Extraemos solo el nombre del archivo para evitar errores de rutas relativas
+    const nombreArchivo = ruta.split(/[\\/]/).pop();
+    return `http://localhost:5126/Uploads/${nombreArchivo}`;
+  };
 
   const handleCrearPedido = async () => {
     if (items.length === 0) return
@@ -35,7 +44,7 @@ const Carrito = () => {
       setPreferenceId(mp.preferenceId)
       toast.success('Pedido creado — elige cómo pagar')
 
-    } catch {
+    } catch (error) {
       toast.error('Error al crear el pedido')
     } finally {
       setProcesando(false)
@@ -53,7 +62,7 @@ const Carrito = () => {
   )
 
   return (
-    <div>
+    <div className="container py-4">
       <h4 className="fw-bold mb-4">
         <i className="bi bi-cart3 me-2 text-success"></i>Mi carrito
       </h4>
@@ -69,71 +78,81 @@ const Carrito = () => {
                   <p className="mt-2">Pedido creado, procede al pago</p>
                 </div>
               ) : (
-                <table className="table mb-0 align-middle">
-                  <thead className="table-light">
-                    <tr>
-                      <th>Producto</th>
-                      <th>Precio</th>
-                      <th>Cantidad</th>
-                      <th>Subtotal</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map(item => (
-                      <tr key={item.idProducto}>
-                        <td>
-                          <div className="d-flex align-items-center gap-2">
-                            {item.imagenUrl ? (
-                              <img
-                                src={item.imagenUrl.startsWith('http')
-                                  ? item.imagenUrl
-                                  : `http://localhost:5000${item.imagenUrl}`}
-                                style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }}
-                                alt={item.nombre}
-                              />
-                            ) : (
-                              <div className="bg-light rounded d-flex align-items-center justify-content-center"
-                                style={{ width: 40, height: 40 }}>
-                                <i className="bi bi-image text-muted"></i>
-                              </div>
-                            )}
-                            <span className="fw-semibold">{item.nombre}</span>
-                          </div>
-                        </td>
-                        <td>${item.precio?.toFixed(2)}</td>
-                        <td>
-                          <div className="d-flex align-items-center gap-1">
-                            <button
-                              className="btn btn-outline-secondary btn-sm px-2 py-0"
-                              onClick={() => cambiarCantidad(item.idProducto, item.cantidad - 1)}
-                            >
-                              <i className="bi bi-dash"></i>
-                            </button>
-                            <span className="fw-bold px-2">{item.cantidad}</span>
-                            <button
-                              className="btn btn-outline-secondary btn-sm px-2 py-0"
-                              onClick={() => cambiarCantidad(item.idProducto, item.cantidad + 1)}
-                            >
-                              <i className="bi bi-plus"></i>
-                            </button>
-                          </div>
-                        </td>
-                        <td className="text-success fw-semibold">
-                          ${(item.precio * item.cantidad).toFixed(2)}
-                        </td>
-                        <td>
-                          <button
-                            className="btn btn-sm btn-outline-danger"
-                            onClick={() => quitar(item.idProducto)}
-                          >
-                            <i className="bi bi-trash"></i>
-                          </button>
-                        </td>
+                <div className="table-responsive">
+                  <table className="table mb-0 align-middle">
+                    <thead className="table-light">
+                      <tr>
+                        <th className="px-4">Producto</th>
+                        <th>Precio</th>
+                        <th>Cantidad</th>
+                        <th>Subtotal</th>
+                        <th className="text-end px-4"></th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {items.map(item => {
+                        const urlFinal = getImagenUrl(item.imagenUrl);
+                        return (
+                          <tr key={item.idProducto}>
+                            <td className="px-4">
+                              <div className="d-flex align-items-center gap-3">
+                                {urlFinal ? (
+                                  <img
+                                    src={urlFinal}
+                                    alt={item.nombre}
+                                    style={{ width: 50, height: 50, objectFit: 'cover', borderRadius: 8 }}
+                                    onError={(e) => {
+                                      e.target.onerror = null;
+                                      e.target.src = 'https://placehold.co/50x50?text=Error';
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="bg-light rounded d-flex align-items-center justify-content-center"
+                                    style={{ width: 50, height: 50 }}>
+                                    <i className="bi bi-image text-muted fs-4"></i>
+                                  </div>
+                                )}
+                                <span className="fw-semibold text-dark">{item.nombre}</span>
+                              </div>
+                            </td>
+                            <td>${item.precio?.toFixed(2)}</td>
+                            <td>
+                              <div className="d-flex align-items-center gap-2">
+                                <button
+                                  className="btn btn-outline-secondary btn-sm rounded-circle p-0 d-flex align-items-center justify-content-center"
+                                  style={{ width: '24px', height: '24px' }}
+                                  onClick={() => cambiarCantidad(item.idProducto, item.cantidad - 1)}
+                                >
+                                  <i className="bi bi-dash"></i>
+                                </button>
+                                <span className="fw-bold mx-1">{item.cantidad}</span>
+                                <button
+                                  className="btn btn-outline-secondary btn-sm rounded-circle p-0 d-flex align-items-center justify-content-center"
+                                  style={{ width: '24px', height: '24px' }}
+                                  onClick={() => cambiarCantidad(item.idProducto, item.cantidad + 1)}
+                                >
+                                  <i className="bi bi-plus"></i>
+                                </button>
+                              </div>
+                            </td>
+                            <td className="text-success fw-bold">
+                              ${(item.precio * item.cantidad).toFixed(2)}
+                            </td>
+                            <td className="text-end px-4">
+                              <button
+                                className="btn btn-sm btn-link text-danger p-0"
+                                onClick={() => quitar(item.idProducto)}
+                                title="Quitar del carrito"
+                              >
+                                <i className="bi bi-trash fs-5"></i>
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           </div>
@@ -141,59 +160,57 @@ const Carrito = () => {
 
         {/* Resumen y pago */}
         <div className="col-md-4">
-          <div className="card border-0 shadow-sm">
-            <div className="card-header bg-success text-white fw-semibold">
-              Resumen del pedido
+          <div className="card border-0 shadow-sm overflow-hidden">
+            <div className="card-header bg-success text-white fw-bold py-3 text-center">
+              RESUMEN DEL PEDIDO
             </div>
-            <div className="card-body">
+            <div className="card-body bg-light">
               <div className="d-flex justify-content-between mb-2">
                 <span className="text-muted">Productos</span>
-                <span>{items.reduce((a, i) => a + i.cantidad, 0)}</span>
+                <span className="fw-bold">{items.reduce((a, i) => a + i.cantidad, 0)}</span>
               </div>
-              <div className="d-flex justify-content-between mb-3">
-                <span className="fw-bold">Total</span>
-                <span className="fw-bold text-success fs-5">${total().toFixed(2)}</span>
+              <div className="d-flex justify-content-between mb-3 border-top pt-2">
+                <span className="fw-bold fs-5">Total</span>
+                <span className="fw-bold text-success fs-4">${total().toFixed(2)}</span>
               </div>
 
-              <hr />
-
-              {/* Botón crear pedido + pagar */}
-              {!preferenceId ? (
-                <button
-                  className="btn btn-success w-100 fw-semibold"
-                  onClick={handleCrearPedido}
-                  disabled={procesando || items.length === 0}
-                >
-                  {procesando
-                    ? <><span className="spinner-border spinner-border-sm me-2"></span>Procesando...</>
-                    : <><i className="bi bi-bag-check me-2"></i>Confirmar y pagar</>
-                  }
-                </button>
-              ) : (
-                <div>
-                  <p className="text-muted small text-center mb-2">
-                    Pedido #{idPedidoCreado} creado. Elige cómo pagar:
-                  </p>
-                  {/* Botón oficial de MercadoPago */}
-                  <Wallet
-                    initialization={{ preferenceId }}
-                    customization={{ texts: { valueProp: 'smart_option' } }}
-                  />
+              <div className="my-4">
+                {!preferenceId ? (
                   <button
-                    className="btn btn-outline-secondary w-100 mt-2 btn-sm"
-                    onClick={() => {
-                      vaciar()
-                      navigate('/cliente/pedidos')
-                    }}
+                    className="btn btn-success w-100 fw-bold py-2 shadow-sm"
+                    onClick={handleCrearPedido}
+                    disabled={procesando || items.length === 0}
                   >
-                    Ver mis pedidos
+                    {procesando
+                      ? <><span className="spinner-border spinner-border-sm me-2"></span>Procesando...</>
+                      : <><i className="bi bi-bag-check-fill me-2"></i>Confirmar y pagar</>
+                    }
                   </button>
-                </div>
-              )}
+                ) : (
+                  <div className="bg-white p-3 rounded border">
+                    <p className="text-muted small text-center mb-3">
+                      Pedido <strong>#{idPedidoCreado}</strong> generado correctamente.
+                    </p>
+                    <Wallet
+                      initialization={{ preferenceId }}
+                      customization={{ texts: { valueProp: 'smart_option' } }}
+                    />
+                    <button
+                      className="btn btn-outline-success w-100 mt-3 btn-sm fw-bold"
+                      onClick={() => {
+                        vaciar()
+                        navigate('/cliente/pedidos')
+                      }}
+                    >
+                      Ir a mis pedidos <i className="bi bi-arrow-right ms-1"></i>
+                    </button>
+                  </div>
+                )}
+              </div>
 
               {!preferenceId && (
                 <button
-                  className="btn btn-outline-secondary w-100 mt-2"
+                  className="btn btn-outline-secondary w-100 border-0 text-decoration-underline"
                   onClick={() => navigate('/catalogo')}
                 >
                   Seguir comprando
