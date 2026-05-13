@@ -5,9 +5,10 @@
 
 # dotenv files
 .env
+# Archivos de configuración local (Contienen llaves y ConnectionStrings)
+appsettings.json
+appsettings.Development.json
 
-#Mercado Pago
-TrazabilidadAgro.API/appsettings.json
 
 
 # User-specific files
