@@ -39,7 +39,7 @@ const Login = () => {
       <div className="card shadow border-0 p-4" style={{ width: '100%', maxWidth: '420px' }}>
         <div className="text-center mb-4">
           <i className="bi bi-leaf text-success" style={{ fontSize: '3rem' }}></i>
-          <h4 className="fw-bold mt-2">TrazabilidadAgro</h4>
+          <h4 className="fw-bold mt-2">Eco-Tex</h4>
           <p className="text-muted small">Inicia sesión para continuar</p>
         </div>
 

@@ -12,10 +12,28 @@ const Navbar = () => {
     navigate('/login')
   }
 
+  // --- FUNCIÓN PARA DETERMINAR EL COLOR SEGÚN EL ROL ---
+  const getNavbarStyles = () => {
+    switch (usuario?.rol) {
+      case 'ADMIN':
+        // Azul claro con degradado o tonalidad hacia azul oscuro
+        return { backgroundColor: '#3498db', backgroundImage: 'linear-gradient(to right, #3498db, #2c3e50)' };
+      case 'PRODUCTOR':
+        // Naranja claro con tonalidad café (Sienna/Terracota)
+        return { backgroundColor: '#d35400', backgroundImage: 'linear-gradient(to right, #e67e22, #8e44ad00, #5d4037)' };
+      default:
+        // Mantener el verde original para clientes o invitados
+        return { backgroundColor: '#198754' };
+    }
+  }
+
   return (
-    <nav className="navbar navbar-expand-lg navbar-dark bg-success px-3">
+    <nav 
+      className="navbar navbar-expand-lg navbar-dark px-3 shadow" 
+      style={getNavbarStyles()} // Aplicamos el estilo dinámico aquí
+    >
       <Link className="navbar-brand fw-bold" to="/">
-        <i className="bi bi-leaf me-2"></i>TrazabilidadAgro
+        <i className="bi bi-leaf me-2"></i>Eco-Tex
       </Link>
 
       <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
@@ -24,76 +42,76 @@ const Navbar = () => {
 
       <div className="collapse navbar-collapse" id="navMenu">
         <ul className="navbar-nav me-auto">
-
           {/* Links ADMIN */}
-          {usuario?.rol === 'ADMIN' && <>
-            <li className="nav-item">
-              <Link className="nav-link" to="/admin/usuarios">
-                <i className="bi bi-people me-1"></i>Usuarios
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link className="nav-link" to="/admin/movimientos">
-                <i className="bi bi-arrow-left-right me-1"></i>Movimientos
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link className="nav-link" to="/admin/blockchain">
-                <i className="bi bi-link-45deg me-1"></i>Blockchain
-              </Link>
-            </li>   
-            <li className="nav-item">
-              <Link className="nav-link" to="/admin/pedidos">
-                <i className="bi bi-bag me-1"></i>Pedidos
-              </Link>
-            </li>
-            </>}
-            
-            
-          
+          {usuario?.rol === 'ADMIN' && (
+            <>
+              <li className="nav-item">
+                <Link className="nav-link" to="/admin/usuarios">
+                  <i className="bi bi-people me-1"></i>Usuarios
+                </Link>
+              </li>
+              <li className="nav-item">
+                <Link className="nav-link" to="/admin/movimientos">
+                  <i className="bi bi-arrow-left-right me-1"></i>Movimientos
+                </Link>
+              </li>
+              <li className="nav-item">
+                <Link className="nav-link" to="/admin/blockchain">
+                  <i className="bi bi-link-45deg me-1"></i>Blockchain
+                </Link>
+              </li>
+              <li className="nav-item">
+                <Link className="nav-link" to="/admin/pedidos">
+                  <i className="bi bi-bag me-1"></i>Pedidos
+                </Link>
+              </li>
+            </>
+          )}
 
           {/* Links PRODUCTOR */}
-          {usuario?.rol === 'PRODUCTOR' && <>
-            <li className="nav-item">
-              <Link className="nav-link" to="/productor/productos">
-                <i className="bi bi-box me-1"></i>Productos
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link className="nav-link" to="/productor/lotes">
-                <i className="bi bi-stack me-1"></i>Lotes
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link className="nav-link" to="/productor/insumos">
-                <i className="bi bi-droplet me-1"></i>Insumos
-              </Link>
-            </li>
-          </>}
+          {usuario?.rol === 'PRODUCTOR' && (
+            <>
+              <li className="nav-item">
+                <Link className="nav-link" to="/productor/productos">
+                  <i className="bi bi-box me-1"></i>Productos
+                </Link>
+              </li>
+              <li className="nav-item">
+                <Link className="nav-link" to="/productor/lotes">
+                  <i className="bi bi-stack me-1"></i>Lotes
+                </Link>
+              </li>
+              <li className="nav-item">
+                <Link className="nav-link" to="/productor/insumos">
+                  <i className="bi bi-droplet me-1"></i>Insumos
+                </Link>
+              </li>
+            </>
+          )}
 
           {/* Links CLIENTE */}
-          {usuario?.rol === 'CLIENTE' && <>
-            <li className="nav-item">
-              <Link className="nav-link" to="/catalogo">
-                <i className="bi bi-shop me-1"></i>Catálogo
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link className="nav-link" to="/cliente/pedidos">
-                <i className="bi bi-bag me-1"></i>Mis pedidos
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link className="nav-link" to="/cliente/escanear">
-                <i className="bi bi-qr-code-scan me-1"></i>Escanear QR
-              </Link>
-            </li>
-          </>}
-
+          {usuario?.rol === 'CLIENTE' && (
+            <>
+              <li className="nav-item">
+                <Link className="nav-link" to="/catalogo">
+                  <i className="bi bi-shop me-1"></i>Catálogo
+                </Link>
+              </li>
+              <li className="nav-item">
+                <Link className="nav-link" to="/cliente/pedidos">
+                  <i className="bi bi-bag me-1"></i>Mis pedidos
+                </Link>
+              </li>
+              <li className="nav-item">
+                <Link className="nav-link" to="/cliente/escanear">
+                  <i className="bi bi-qr-code-scan me-1"></i>Escanear QR
+                </Link>
+              </li>
+            </>
+          )}
         </ul>
 
         <ul className="navbar-nav ms-auto align-items-center gap-2">
-          {/* Carrito solo para CLIENTE */}
           {usuario?.rol === 'CLIENTE' && (
             <li className="nav-item">
               <Link className="btn btn-outline-light btn-sm position-relative" to="/cliente/carrito">
