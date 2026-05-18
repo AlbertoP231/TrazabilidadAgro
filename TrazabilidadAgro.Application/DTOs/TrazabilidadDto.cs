@@ -11,6 +11,7 @@ public class TrazabilidadPublicaDto
     public List<InsumoDto> Insumos { get; set; } = new();
     public List<MovimientoDto> Movimientos { get; set; } = new();
     public string? TxHash { get; set; }
+    public DateTime? FechaExpiracion { get; set; }
 }
 
 public class InsumoDto

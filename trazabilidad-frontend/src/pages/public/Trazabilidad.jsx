@@ -2,6 +2,48 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import api from '../../api/axios'
 
+// --- COMPONENTE DEL RELOJ EN CUENTA REGRESIVA ---
+const RelojAnaquel = ({ fechaExpiracion }) => {
+  const [tiempo, setTiempo] = useState('Calculando...');
+  const [expirado, setExpirado] = useState(false);
+
+  useEffect(() => {
+    if (!fechaExpiracion) {
+      setTiempo('No definido');
+      return;
+    }
+
+    const timer = setInterval(() => {
+      const limite = new Date(fechaExpiracion);
+      const ahora = new Date();
+      const diferencia = limite - ahora;
+
+      if (diferencia <= 0) {
+        setTiempo('Expirado');
+        setExpirado(true);
+        clearInterval(timer);
+        return;
+      }
+
+      const d = Math.floor(diferencia / (1000 * 60 * 60 * 24));
+      const h = Math.floor((diferencia / (1000 * 60 * 60)) % 24);
+      const m = Math.floor((diferencia / 1000 / 60) % 60);
+
+      setTiempo(`${d}d ${h}h ${m}m`);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [fechaExpiracion]);
+
+  return (
+    <span className={`fw-bold ${expirado ? 'text-danger' : 'text-success'}`}>
+      <i className={`bi ${expirado ? 'bi-exclamation-triangle-fill' : 'bi-clock-history'} me-1`}></i>
+      {tiempo}
+    </span>
+  );
+};
+// ------------------------------------------------
+
 const Trazabilidad = () => {
   const { codigoQr } = useParams()
   const [data, setData] = useState(null)
@@ -60,17 +102,23 @@ const Trazabilidad = () => {
                 </div>
               )}
             </div>
-            <div className="col-md-6">
+            {/* Ajuste a 3 columnas para incluir el reloj */}
+            <div className="col-md-4">
               <div className="text-muted small">Fecha de siembra</div>
               <div className="fw-semibold text-success">
                 <i className="bi bi-calendar-event me-2"></i>{data.fechaSiembra || '—'}
               </div>
             </div>
-            <div className="col-md-6">
+            <div className="col-md-4">
               <div className="text-muted small">Fecha de cosecha</div>
               <div className="fw-semibold text-danger">
                 <i className="bi bi-calendar-check me-2"></i>{data.fechaCosecha || '—'}
               </div>
+            </div>
+            {/* NUEVO BLOQUE: TIEMPO EN ANAQUEL */}
+            <div className="col-md-4 border-start">
+              <div className="text-muted small">Vida en Anaquel</div>
+              <RelojAnaquel fechaExpiracion={data.fechaExpiracion} />
             </div>
           </div>
         </div>

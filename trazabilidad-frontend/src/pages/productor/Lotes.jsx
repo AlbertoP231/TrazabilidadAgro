@@ -3,10 +3,53 @@ import api from '../../api/axios'
 import toast from 'react-hot-toast'
 import QRCode from 'react-qr-code'
 
+// --- COMPONENTE DEL RELOJ EN CUENTA REGRESIVA ---
+const RelojAnaquel = ({ fechaExpiracion }) => {
+  const [tiempo, setTiempo] = useState('Calculando...');
+  const [expirado, setExpirado] = useState(false);
+
+  useEffect(() => {
+    if (!fechaExpiracion) {
+      setTiempo('No definido');
+      return;
+    }
+
+    const timer = setInterval(() => {
+      const limite = new Date(fechaExpiracion);
+      const ahora = new Date();
+      const diferencia = limite - ahora;
+
+      if (diferencia <= 0) {
+        setTiempo('Expirado');
+        setExpirado(true);
+        clearInterval(timer);
+        return;
+      }
+
+      // Matemáticas para sacar días, horas y minutos
+      const d = Math.floor(diferencia / (1000 * 60 * 60 * 24));
+      const h = Math.floor((diferencia / (1000 * 60 * 60)) % 24);
+      const m = Math.floor((diferencia / 1000 / 60) % 60);
+
+      setTiempo(`${d}d ${h}h ${m}m`);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [fechaExpiracion]);
+
+  return (
+    <span className={`fw-bold ${expirado ? 'text-danger' : 'text-warning'}`}>
+      <i className={`bi ${expirado ? 'bi-exclamation-triangle-fill' : 'bi-clock-history'} me-1`}></i>
+      {tiempo}
+    </span>
+  );
+};
+// ------------------------------------------------
+
 const ProductorLotes = () => {
   const [lotes, setLotes] = useState([])
   const [productos, setProductos] = useState([])
-  const [form, setForm] = useState({ idProducto: '', fechaSiembra: '', fechaCosecha: '', cantidad: '' })
+  const [form, setForm] = useState({ idProducto: '', fechaSiembra: '', fechaCosecha: '', cantidad: '', diasAnaquel: '' })
   const [qrVisible, setQrVisible] = useState(null)
   const [cargando, setCargando] = useState(true)
 
@@ -30,9 +73,17 @@ const ProductorLotes = () => {
   const handleGuardar = async (e) => {
     e.preventDefault()
     try {
-      const { data } = await api.post('/lotes', form)
+      // FORZAMOS LA CONVERSIÓN A NÚMEROS ANTES DE ENVIAR A LA API
+      const payload = {
+        ...form,
+        cantidad: Number(form.cantidad),
+        diasAnaquel: Number(form.diasAnaquel)
+      }
+
+      const { data } = await api.post('/lotes', payload)
       toast.success(`Lote creado — QR: ${data.codigoQr}`)
-      setForm({ idProducto: '', fechaSiembra: '', fechaCosecha: '', cantidad: '' })
+      
+      setForm({ idProducto: '', fechaSiembra: '', fechaCosecha: '', cantidad: '', diasAnaquel: '' })
       cargar()
     } catch {
       toast.error('Error al crear lote')
@@ -56,7 +107,7 @@ const ProductorLotes = () => {
         <div className="card-body">
           <form onSubmit={handleGuardar}>
             <div className="row g-3">
-              <div className="col-md-3">
+              <div className="col-md-2">
                 <label className="form-label fw-semibold">Producto</label>
                 <select
                   className="form-select"
@@ -70,7 +121,7 @@ const ProductorLotes = () => {
                   ))}
                 </select>
               </div>
-              <div className="col-md-3">
+              <div className="col-md-2">
                 <label className="form-label fw-semibold">Fecha siembra</label>
                 <input
                   type="date"
@@ -88,7 +139,7 @@ const ProductorLotes = () => {
                   onChange={e => setForm({ ...form, fechaCosecha: e.target.value })}
                 />
               </div>
-              <div className="col-md-3">
+              <div className="col-md-2">
                 <label className="form-label fw-semibold">Cantidad (kg)</label>
                 <input
                   type="number"
@@ -97,6 +148,18 @@ const ProductorLotes = () => {
                   placeholder="0.00"
                   value={form.cantidad}
                   onChange={e => setForm({ ...form, cantidad: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="col-md-3">
+                <label className="form-label fw-semibold">Días en Anaquel</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  placeholder="Ej. 15"
+                  value={form.diasAnaquel}
+                  onChange={e => setForm({ ...form, diasAnaquel: e.target.value })}
+                  required
                 />
               </div>
             </div>
@@ -123,10 +186,10 @@ const ProductorLotes = () => {
                 <thead className="table-light">
                   <tr>
                     <th>Producto</th>
-                    <th>Siembra</th>
                     <th>Cosecha</th>
                     <th>Cantidad Total</th>
                     <th>Disponible</th>
+                    <th>Tiempo en Anaquel</th>
                     <th>Código QR</th>
                     <th className="text-end">Acciones</th>
                   </tr>
@@ -136,11 +199,13 @@ const ProductorLotes = () => {
                     <Fragment key={l.idLote}>
                       <tr>
                         <td className="fw-semibold">{l.productoNombre}</td>
-                        <td>{l.fechaSiembra || '—'}</td>
                         <td>{l.fechaCosecha || '—'}</td>
                         <td className="text-muted">{l.cantidad} kg</td>
                         <td className="fw-bold text-success">
                           {l.cantidadDisponible !== null && l.cantidadDisponible !== undefined ? l.cantidadDisponible : l.cantidad} kg
+                        </td>
+                        <td>
+                          <RelojAnaquel fechaExpiracion={l.fechaExpiracion} />
                         </td>
                         <td><code className="small">{l.codigoQr}</code></td>
                         <td className="text-end">

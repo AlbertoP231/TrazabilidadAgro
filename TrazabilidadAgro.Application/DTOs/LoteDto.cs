@@ -17,4 +17,6 @@ public class CrearLoteDto
     public DateOnly? FechaSiembra { get; set; }
     public DateOnly? FechaCosecha { get; set; }
     public decimal? Cantidad { get; set; }
+
+    public int DiasAnaquel { get; set; }
 }

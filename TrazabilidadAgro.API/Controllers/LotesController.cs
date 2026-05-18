@@ -10,8 +10,8 @@ namespace TrazabilidadAgro.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-// We only require the user to be authenticated, NOT a specific role here.
-// This prevents the 403 Forbidden error at the gateway.
+// Solo requerimos que el usuario esté autenticado de forma general.
+// Esto previene el error 403 Forbidden en el Gateway inicial.
 [Authorize]
 public class LotesController : ControllerBase
 {
@@ -21,6 +21,7 @@ public class LotesController : ControllerBase
     {
         _context = context;
     }
+
     [HttpGet("catalogo")]
     [AllowAnonymous]
     public async Task<IActionResult> GetCatalogoPublico()
@@ -43,6 +44,7 @@ public class LotesController : ControllerBase
                     nombreProductor = l.Producto.Productor.Usuario.Nombre,
                     fechaCosecha = l.FechaCosecha,
                     cantidadDisponible = l.CantidadDisponible,
+                    fechaExpiracion = l.FechaExpiracion, // <-- Se expone para el catálogo
                     codigoQr = l.CodigoQr
                 }).ToListAsync();
 
@@ -59,18 +61,18 @@ public class LotesController : ControllerBase
     {
         try
         {
-            // Extract the user's role from the claims manually to see exactly what they have
+            // Extraer el rol del usuario desde los claims manualmente
             var userRole = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value?.ToUpper() ?? "";
 
-            // If the user is neither an Administrator nor a Productor, deny access manually
+            // Si el usuario no es Administrador ni Productor, denegar acceso
             if (userRole != "ADMINISTRADOR" && userRole != "ADMIN" && userRole != "PRODUCTOR")
             {
-                return Forbid(); // Or return Unauthorized()
+                return Forbid();
             }
 
             var query = _context.Lotes.Include(l => l.Producto).AsQueryable();
 
-            // Only filter the query if the user is explicitly a Productor
+            // Filtrar la consulta solo si el usuario es explícitamente un Productor
             if (userRole == "PRODUCTOR")
             {
                 var idUsuarioClaim = User.FindFirst(ClaimTypes.NameIdentifier);
@@ -89,7 +91,7 @@ public class LotesController : ControllerBase
                     }
                 }
             }
-            // Administrators bypass the filter and see everything
+            // Los administradores saltan el filtro y ven todo
 
             var lotes = await query.Select(l => new
             {
@@ -100,6 +102,7 @@ public class LotesController : ControllerBase
                 fechaCosecha = l.FechaCosecha,
                 cantidad = l.Cantidad,
                 cantidadDisponible = l.CantidadDisponible,
+                fechaExpiracion = l.FechaExpiracion, // <-- Variable vital para el Reloj de React
                 codigoQr = l.CodigoQr,
                 codigoHash = l.CodigoQr
             }).ToListAsync();
@@ -113,7 +116,7 @@ public class LotesController : ControllerBase
     }
 
     [HttpPost]
-    // Specific role restriction applied only to creation
+    // Restricción de rol específica aplicada solo a la creación de lotes
     [Authorize(Roles = "PRODUCTOR")]
     public async Task<IActionResult> Crear([FromBody] CrearLoteDto dto)
     {
@@ -126,6 +129,8 @@ public class LotesController : ControllerBase
             FechaCosecha = dto.FechaCosecha,
             Cantidad = dto.Cantidad,
             CantidadDisponible = dto.Cantidad,
+            // Guardamos la fecha de expiración sumando los días desde el momento exacto de la creación
+            FechaExpiracion = DateTime.Now.AddDays(dto.DiasAnaquel),
             CodigoQr = codigoQr
         };
 

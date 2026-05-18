@@ -36,6 +36,7 @@ public class TrazabilidadController : ControllerBase
             UbicacionProductor = lote.Producto.Productor.Ubicacion,
             FechaSiembra = lote.FechaSiembra,
             FechaCosecha = lote.FechaCosecha,
+            FechaExpiracion = lote.FechaExpiracion, // <--- SE AGREGA LA FECHA PARA EL RELOJ
             Cantidad = lote.Cantidad,
             Insumos = lote.LoteInsumos.Select(li => new InsumoDto
             {
