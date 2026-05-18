@@ -28,10 +28,11 @@ const Carrito = () => {
     if (items.length === 0) return
     setProcesando(true)
     try {
-      // 1. Crear pedido en el backend
+      // 1. Crear pedido en el backend (Modificado para incluir Paso 5: idLote)
       const { data: pedido } = await api.post('/pedidos', {
         detalles: items.map(i => ({
           idProducto: i.idProducto,
+          idLote: i.idLote, // Paso 5: Se envía el lote específico seleccionado en el catálogo
           cantidad: i.cantidad,
           precio: i.precio
         }))
@@ -45,7 +46,8 @@ const Carrito = () => {
       toast.success('Pedido creado — elige cómo pagar')
 
     } catch (error) {
-      toast.error('Error al crear el pedido')
+      const mensajeError = error.response?.data?.mensaje || 'Error al crear el pedido';
+      toast.error(mensajeError, { duration: 5000 });
     } finally {
       setProcesando(false)
     }

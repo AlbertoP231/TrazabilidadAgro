@@ -125,7 +125,8 @@ const ProductorLotes = () => {
                     <th>Producto</th>
                     <th>Siembra</th>
                     <th>Cosecha</th>
-                    <th>Cantidad</th>
+                    <th>Cantidad Total</th>
+                    <th>Disponible</th>
                     <th>Código QR</th>
                     <th className="text-end">Acciones</th>
                   </tr>
@@ -134,10 +135,13 @@ const ProductorLotes = () => {
                   {lotes.map(l => (
                     <Fragment key={l.idLote}>
                       <tr>
-                        <td className="fw-semibold">{l.nombreProducto}</td>
+                        <td className="fw-semibold">{l.productoNombre}</td>
                         <td>{l.fechaSiembra || '—'}</td>
                         <td>{l.fechaCosecha || '—'}</td>
-                        <td>{l.cantidad} kg</td>
+                        <td className="text-muted">{l.cantidad} kg</td>
+                        <td className="fw-bold text-success">
+                          {l.cantidadDisponible !== null && l.cantidadDisponible !== undefined ? l.cantidadDisponible : l.cantidad} kg
+                        </td>
                         <td><code className="small">{l.codigoQr}</code></td>
                         <td className="text-end">
                           <button
@@ -150,7 +154,7 @@ const ProductorLotes = () => {
                       </tr>
                       {qrVisible === l.idLote && (
                         <tr className="bg-light">
-                          <td colSpan={6} className="p-0">
+                          <td colSpan={7} className="p-0">
                             <div className="d-flex align-items-center gap-4 p-4 border-start border-primary border-4">
                               <div className="bg-white p-2 shadow-sm rounded">
                                 <QRCode

@@ -7,6 +7,7 @@ public class Lote
     public DateOnly? FechaSiembra { get; set; }
     public DateOnly? FechaCosecha { get; set; }
     public decimal? Cantidad { get; set; }
+    public decimal? CantidadDisponible { get; set; } // Añadir esta línea
     public string? CodigoQr { get; set; }
 
     public Producto Producto { get; set; } = null!;

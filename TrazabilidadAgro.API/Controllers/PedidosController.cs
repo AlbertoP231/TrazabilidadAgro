@@ -102,28 +102,78 @@ public class PedidosController : ControllerBase
     {
         var idUsuario = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
-        var pedido = new Pedido
+        using var transaction = await _context.Database.BeginTransactionAsync();
+
+        try
         {
-            IdUsuario = idUsuario,
-            Fecha = DateTime.Now,
-            Estado = "PENDIENTE",
-            Total = dto.Detalles.Sum(d => d.Precio * d.Cantidad),
-            Detalles = dto.Detalles.Select(d => new DetallePedido
+            var pedido = new Pedido
             {
-                IdProducto = d.IdProducto,
-                Cantidad = d.Cantidad,
-                Precio = d.Precio
-            }).ToList()
-        };
+                IdUsuario = idUsuario,
+                Fecha = DateTime.Now,
+                Estado = "PENDIENTE",
+                Total = dto.Detalles.Sum(d => d.Precio * d.Cantidad),
+                Detalles = new List<DetallePedido>()
+            };
 
-        _context.Pedidos.Add(pedido);
-        await _context.SaveChangesAsync();
+            _context.Pedidos.Add(pedido);
 
-        return Ok(new { mensaje = "Pedido creado", idPedido = pedido.IdPedido });
+            foreach (var item in dto.Detalles)
+            {
+                // 1. Buscar el lote específico seleccionado por el cliente
+                var lote = await _context.Lotes.FindAsync(item.IdLote);
+
+                if (lote == null || lote.IdProducto != item.IdProducto)
+                {
+                    await transaction.RollbackAsync();
+                    return BadRequest(new { mensaje = $"El lote especificado para el producto ID {item.IdProducto} no existe o no coincide." });
+                }
+
+                // 2. Validar inventario del lote seleccionado
+                decimal disponible = lote.CantidadDisponible ?? 0m;
+                if (disponible < item.Cantidad)
+                {
+                    await transaction.RollbackAsync();
+                    return BadRequest(new { mensaje = $"Inventario insuficiente para {lote.CodigoQr}. Solicitado: {item.Cantidad} kg, Disponible: {disponible} kg." });
+                }
+
+                // 3. Descontar el stock del lote
+                lote.CantidadDisponible -= item.Cantidad;
+
+                // 4. Registrar movimiento en el libro mayor de trazabilidad
+                var movimiento = new MovimientoTrazabilidad
+                {
+                    IdLote = lote.IdLote,
+                    TipoMovimiento = "Venta a Cliente",
+                    Descripcion = $"Salida de {item.Cantidad} kg mediante compra directa en catálogo.",
+                    Fecha = DateTime.Now,
+                    RegistradoPor = idUsuario
+                };
+                _context.MovimientosTrazabilidad.Add(movimiento);
+
+                // 5. Vincular al detalle del pedido con su lote correspondiente
+                pedido.Detalles.Add(new DetallePedido
+                {
+                    IdProducto = item.IdProducto,
+                    IdLote = item.IdLote, // <--- AGREGAR ESTA LÍNEA
+                    Cantidad = item.Cantidad,
+                    Precio = item.Precio
+                });
+            }
+
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            return Ok(new { mensaje = "Pedido creado con trazabilidad directa", idPedido = pedido.IdPedido });
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            return StatusCode(500, new { mensaje = "Error al procesar la compra dirigida", detalle = ex.Message });
+        }
     }
 }
 
-public class CambiarEstadoDto
+    public class CambiarEstadoDto
 {
     public string Estado { get; set; } = string.Empty;
 }
@@ -137,5 +187,7 @@ public class DetallePedidoDto
 {
     public int IdProducto { get; set; }
     public int Cantidad { get; set; }
+
+    public int IdLote { get; set; }
     public decimal Precio { get; set; }
 }

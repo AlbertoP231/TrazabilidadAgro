@@ -21,6 +21,38 @@ public class LotesController : ControllerBase
     {
         _context = context;
     }
+    [HttpGet("catalogo")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetCatalogoPublico()
+    {
+        try
+        {
+            var lotesDisponibles = await _context.Lotes
+                .Include(l => l.Producto)
+                    .ThenInclude(p => p.Productor)
+                        .ThenInclude(pr => pr.Usuario)
+                .Where(l => l.CantidadDisponible > 0)
+                .Select(l => new
+                {
+                    idLote = l.IdLote,
+                    idProducto = l.IdProducto,
+                    nombre = l.Producto.Nombre,
+                    descripcion = l.Producto.Descripcion,
+                    precio = l.Producto.Precio,
+                    imagenUrl = l.Producto.ImagenUrl,
+                    nombreProductor = l.Producto.Productor.Usuario.Nombre,
+                    fechaCosecha = l.FechaCosecha,
+                    cantidadDisponible = l.CantidadDisponible,
+                    codigoQr = l.CodigoQr
+                }).ToListAsync();
+
+            return Ok(lotesDisponibles);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "Error al obtener el catálogo de lotes", detalle = ex.Message });
+        }
+    }
 
     [HttpGet]
     public async Task<IActionResult> GetLotes()
@@ -67,6 +99,7 @@ public class LotesController : ControllerBase
                 fechaSiembra = l.FechaSiembra,
                 fechaCosecha = l.FechaCosecha,
                 cantidad = l.Cantidad,
+                cantidadDisponible = l.CantidadDisponible,
                 codigoQr = l.CodigoQr,
                 codigoHash = l.CodigoQr
             }).ToListAsync();
@@ -92,6 +125,7 @@ public class LotesController : ControllerBase
             FechaSiembra = dto.FechaSiembra,
             FechaCosecha = dto.FechaCosecha,
             Cantidad = dto.Cantidad,
+            CantidadDisponible = dto.Cantidad,
             CodigoQr = codigoQr
         };
 
